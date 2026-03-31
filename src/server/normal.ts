@@ -56,6 +56,15 @@ export function createNormalServer(
   // Health check
   app.get('/api/health', (c) => c.json({ status: 'ok' }))
 
+  // GET /api/config — Current configuration
+  app.get('/api/config', (c) => {
+    const config = getConfig(rootDir)
+    if (!config || !config.onboardingCompleted) {
+      return c.json({ error: 'Onboarding not completed' }, 400)
+    }
+    return c.json({ company: config.company, persona: config.persona })
+  })
+
   // === Tickets ===
 
   // GET /api/tickets — List tickets with optional filters

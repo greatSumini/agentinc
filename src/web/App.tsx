@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { OnboardingPage } from './pages/OnboardingPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { ChatPage } from './pages/ChatPage'
+import { Layout } from './components/layout/Layout'
 import { get } from './lib/api-client'
 
 interface OnboardingStatus {
@@ -51,8 +52,22 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/onboarding" element={<OnboardingPage />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/chat" element={<ChatPage />} />
+        <Route
+          path="/dashboard"
+          element={
+            <Layout>
+              <DashboardPage />
+            </Layout>
+          }
+        />
+        <Route
+          path="/chat"
+          element={
+            <Layout>
+              <ChatPage />
+            </Layout>
+          }
+        />
         <Route path="/" element={<RootRedirect />} />
       </Routes>
     </BrowserRouter>
