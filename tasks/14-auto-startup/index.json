@@ -85,7 +85,9 @@
     {
       "phase": 11,
       "name": "cli-entry",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-04-01T06:25:53+0900",
+      "completed_at": "2026-04-01T06:27:12+0900"
     },
     {
       "phase": 12,
