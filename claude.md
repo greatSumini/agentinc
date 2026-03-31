@@ -1,4 +1,55 @@
-프로젝트의 전체 아키텍처와 설계 의도를 담은 문서는 `/spec/` 디렉토리에 있습니다.
+# auto-startup
+
+CLI 도구로, 실행 시 로컬 웹 서버를 띄워 AI 에이전트 기반의 "회사"를 운영한다.
+
+## Architecture
+
+```
+src/
+├── core/           # 비즈니스 로직 (타입, 스토어, 서비스)
+├── server/         # Hono API 서버 (온보딩 / 노멀 모드 분리)
+├── claude-runner/  # Claude CLI spawn (flag-builder, env-builder, spawner)
+├── daemon/         # 에이전트 워커 (orchestrator + agent-worker)
+├── mcp/            # MCP stdio 서버 (온보딩용 / 에이전트용)
+├── templates/      # 프롬프트 템플릿 (페르소나, context-engineer)
+├── cli/            # CLI 진입점 (auto-startup 명령어)
+└── web/            # React 프론트엔드 (Vite + Tailwind)
+```
+
+## 실행 흐름
+
+1. `auto-startup` 실행 → 온보딩 완료 여부 확인
+2. 미완료: 온보딩 서버 시작 → CEO 에이전트와 대화 → 회사 생성 → 서버 종료
+3. 완료: 대시보드 서버 + daemon 시작 → 에이전트 워커 폴링
+
+## 데이터 저장
+
+실행루트경로(사용자가 auto-startup을 실행한 디렉토리) 기준:
+
+- `.auto-startup/` — 내부 상태 (config, agents, tickets)
+- `principles/` — 회사 원칙 (goal.md, business.md)
+- `CLAUDE.md` — 원칙 참조 (auto-startup이 생성)
+- `.claude/settings.json` — SessionEnd hook
+
+## 개발
+
+```bash
+npm run dev        # 서버 직접 실행 (tsx)
+npm run dev:web    # Vite dev 서버 (프론트엔드만)
+npm run build      # 프로덕션 빌드
+npm test           # 테스트 실행
+```
+
+## soul/ 디렉토리
+
+AI 인사이트/gotchas 기록. 자세한 내용은 아래 soul 관련 지침 참조.
+
+## 테스트
+
+- vitest 사용
+- 순수 로직만 테스트 (flag-builder, store, service, frontmatter)
+- mock 최소화, 실제 fs 테스트 선호
+- E2E/CLI/UI 테스트 없음
 
 ---
 

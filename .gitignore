@@ -10,6 +10,7 @@ node_modules/
 
 # Auto-startup runtime
 .auto-startup/.pid
+.auto-startup/.tmp/
 
 # OS
 .DS_Store

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-agentinc phase runner.
+auto-startup phase runner.
 Reads tasks/{task-dir}/index.json, finds the next pending phase,
 spawns a Claude Code session with the phase prompt, and updates status.
 
@@ -347,7 +347,7 @@ def main():
         sys.exit(1)
 
     index = load_index(index_file)
-    project_name = index.get("project", "agentinc")
+    project_name = index.get("project", "auto-startup")
     task_name = index.get("task", task_dir_name)
     total_phases = index.get("totalPhases", len(index["phases"]))
     pending_count = sum(1 for p in index["phases"] if p["status"] == "pending")
@@ -454,14 +454,6 @@ def main():
                     p["completed_at"] = ts_end
                     break
             save_index(index_file, fresh_index)
-
-            # Generate docs-diff.md after phase 0 (docs update)
-            if phase_num == 0:
-                subprocess.run(
-                    ["python3", str(
-                        ROOT / "scripts" / "gen-spec-diff.py"), str(task_dir), baseline],
-                    cwd=str(ROOT),
-                )
 
             git_commit_phase(task_name, task_dir_name,
                              phase_num, phase_name, gh_env)
