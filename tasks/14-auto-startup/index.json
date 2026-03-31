@@ -43,12 +43,15 @@
     {
       "phase": 5,
       "name": "daemon",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-04-01T06:02:11+0900",
+      "completed_at": "2026-04-01T06:04:30+0900"
     },
     {
       "phase": 6,
       "name": "hono-api-routes",
-      "status": "pending"
+      "status": "pending",
+      "started_at": "2026-04-01T06:04:30+0900"
     },
     {
       "phase": 7,
