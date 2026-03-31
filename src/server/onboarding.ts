@@ -5,22 +5,33 @@
  */
 
 import { Hono } from 'hono'
+import * as fs from 'node:fs'
+import * as path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { spawn } from 'node:child_process'
 import type { EventBus } from './shared/event-bus.js'
 import { createSSEHandler } from './shared/sse-handler.js'
-import type { Persona, Config } from '../core/types.js'
+import type { Persona, Config, AgentConfig } from '../core/types.js'
 import { saveConfig, getConfig } from '../core/store/config-store.js'
+import { saveAgent, saveAgentPrompt, saveAgentSubagent } from '../core/store/agent-store.js'
+import { parseSubagentMd } from '../core/utils/frontmatter.js'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 type OnboardingStep = 'persona' | 'chat' | 'company-name' | 'completed'
 
 interface OnboardingState {
   persona: Persona | null
   step: OnboardingStep
+  answers: Array<{ questionId: string; question: string; answer: string }>
 }
 
 // In-memory state for onboarding
 const state: OnboardingState = {
   persona: null,
   step: 'persona',
+  answers: [],
 }
 
 // MCP Bridge — in-memory callbacks for MCP <-> Web UI communication
@@ -45,8 +56,62 @@ const bridge: OnboardingBridge = {
   currentSuggestedCompanyName: null,
 }
 
-export function createOnboardingServer(rootDir: string, eventBus: EventBus): Hono {
+function getPersonaPromptPath(persona: Persona): string {
+  // Try source path first (development)
+  const srcPath = path.resolve(__dirname, '../templates/personas', `${persona}.md`)
+  if (fs.existsSync(srcPath)) {
+    return srcPath
+  }
+  // Fallback to dist path (production)
+  const distPath = path.resolve(__dirname, '../../templates/personas', `${persona}.md`)
+  if (fs.existsSync(distPath)) {
+    return distPath
+  }
+  throw new Error(`Persona prompt not found: ${persona}`)
+}
+
+function getOnboardingSystemPromptPath(): string {
+  // Try source path first (development)
+  const srcPath = path.resolve(__dirname, '../templates/onboarding-system.md')
+  if (fs.existsSync(srcPath)) {
+    return srcPath
+  }
+  // Fallback to dist path (production)
+  const distPath = path.resolve(__dirname, '../../templates/onboarding-system.md')
+  if (fs.existsSync(distPath)) {
+    return distPath
+  }
+  throw new Error('Onboarding system prompt not found')
+}
+
+function getContextEngineerPath(): string {
+  // Try source path first (development)
+  const srcPath = path.resolve(__dirname, '../templates/context-engineer.md')
+  if (fs.existsSync(srcPath)) {
+    return srcPath
+  }
+  // Fallback to dist path (production)
+  const distPath = path.resolve(__dirname, '../../templates/context-engineer.md')
+  if (fs.existsSync(distPath)) {
+    return distPath
+  }
+  throw new Error('context-engineer.md template not found')
+}
+
+function getMcpServerPath(): string {
+  // Try dist path (production)
+  const distPath = path.resolve(__dirname, '../../mcp/onboarding-mcp.js')
+  if (fs.existsSync(distPath)) {
+    return distPath
+  }
+  // Fallback to source path (won't work without transpilation, but for path reference)
+  const srcPath = path.resolve(__dirname, '../mcp/onboarding-mcp.js')
+  return distPath // Return dist path anyway, it should exist after build
+}
+
+export function createOnboardingServer(rootDir: string, eventBus: EventBus, port?: number): Hono {
   const app = new Hono()
+  const serverPort = port || getConfig(rootDir)?.port || 3000
 
   // Health check
   app.get('/api/health', (c) => c.json({ status: 'ok' }))
@@ -70,11 +135,16 @@ export function createOnboardingServer(rootDir: string, eventBus: EventBus): Hon
 
     state.persona = body.persona
     state.step = 'chat'
+    state.answers = [] // Reset answers for new persona
 
     // Emit status change
     eventBus.emit('onboarding:status', { persona: state.persona, step: state.step })
 
-    // TODO: Phase 8에서 구현 — CEO claude session spawn 트리거
+    // Spawn CEO claude session (async, don't await)
+    spawnCEOSession(rootDir, body.persona, serverPort).catch((err) => {
+      console.error('[onboarding] Failed to spawn CEO session:', err)
+    })
+
     return c.json({ ok: true })
   })
 
@@ -115,6 +185,21 @@ export function createOnboardingServer(rootDir: string, eventBus: EventBus): Hon
       bridge.pendingQuestionResolve = (data) => {
         clearTimeout(timeoutId)
         bridge.pendingQuestionResolve = null
+
+        // Store answers for later use
+        if (bridge.currentQuestions) {
+          for (const answer of data.answers) {
+            const question = bridge.currentQuestions.find((q) => q.id === answer.questionId)
+            if (question) {
+              state.answers.push({
+                questionId: answer.questionId,
+                question: question.text,
+                answer: answer.answer,
+              })
+            }
+          }
+        }
+
         bridge.currentQuestions = null
         resolve(c.json(data))
       }
@@ -218,17 +303,128 @@ export function createOnboardingServer(rootDir: string, eventBus: EventBus): Hon
       return c.json({ error: 'Missing required fields' }, 400)
     }
 
-    // For Phase 7: just mark onboarding as completed in config
-    // Phase 8 will handle file creation
-    const existingConfig = getConfig(rootDir)
-    const defaultPersona: Persona = 'steve-jobs'
+    const persona = state.persona || 'steve-jobs'
+
+    // 1. Create principles/ directory and files
+    const principlesDir = path.join(rootDir, 'principles')
+    fs.mkdirSync(principlesDir, { recursive: true })
+
+    // principles/goal.md
+    const goalContent = `# ${body.company} — Goal
+
+${body.goal}
+`
+    fs.writeFileSync(path.join(principlesDir, 'goal.md'), goalContent)
+
+    // principles/business.md
+    const businessContent = `# ${body.company} — Business Values
+
+## Core Values
+
+${body.businessValues}
+
+## What We Don't Pursue
+
+${body.businessAntiValues}
+`
+    fs.writeFileSync(path.join(principlesDir, 'business.md'), businessContent)
+
+    // 2. Create CLAUDE.md at rootDir
+    const claudeMdContent = `# ${body.company}
+
+이 프로젝트는 auto-startup으로 생성된 AI 기반 회사입니다.
+
+## Principles
+
+- [Goal](./principles/goal.md) — 회사의 존재 이유와 최종 목표
+- [Business Values](./principles/business.md) — 핵심 가치와 추구하지 않는 것
+`
+    fs.writeFileSync(path.join(rootDir, 'CLAUDE.md'), claudeMdContent)
+
+    // 3. Create .claude/settings.json with SessionEnd hook
+    const claudeDir = path.join(rootDir, '.claude')
+    fs.mkdirSync(claudeDir, { recursive: true })
+
+    const settingsJson = {
+      hooks: {
+        SessionEnd: [
+          {
+            type: 'command',
+            command: `bash -c '[ -f .auto-startup/.pid ] && curl -sf http://localhost:${serverPort}/api/hooks/session-end -X POST -H "Content-Type: application/json" -d "{\\"agentName\\": \\"$AGENT_NAME\\"}" || true'`,
+          },
+        ],
+      },
+    }
+    fs.writeFileSync(path.join(claudeDir, 'settings.json'), JSON.stringify(settingsJson, null, 2))
+
+    // 4. Save config
     const config: Config = {
       company: body.company,
-      persona: state.persona || existingConfig?.persona || defaultPersona,
+      persona,
       onboardingCompleted: true,
-      port: existingConfig?.port || 3000,
+      port: serverPort,
     }
     saveConfig(rootDir, config)
+
+    // 5. Save onboarding.json with all Q&A
+    const onboardingData = {
+      persona,
+      company: body.company,
+      goal: body.goal,
+      businessValues: body.businessValues,
+      businessAntiValues: body.businessAntiValues,
+      answers: state.answers,
+      completedAt: new Date().toISOString(),
+    }
+    const autoStartupDir = path.join(rootDir, '.auto-startup')
+    fs.mkdirSync(autoStartupDir, { recursive: true })
+    fs.writeFileSync(
+      path.join(autoStartupDir, 'onboarding.json'),
+      JSON.stringify(onboardingData, null, 2)
+    )
+
+    // 6. Create CEO agent
+    const ceoAgentConfig: AgentConfig = {
+      name: 'ceo',
+      description: '회사의 CEO. 방향성 결정, 업무 할당, 원칙 관리.',
+      can_delegate: true,
+    }
+    saveAgent(rootDir, 'ceo', ceoAgentConfig)
+
+    // 7. Create CEO prompt.md (operational mode, not onboarding)
+    const personaPromptContent = fs.readFileSync(getPersonaPromptPath(persona), 'utf-8')
+    const ceoPromptContent = `당신은 ${body.company}의 CEO입니다.
+
+${personaPromptContent}
+
+## 역할
+
+- 회사의 방향성과 원칙을 관리한다
+- 에이전트에게 업무를 할당한다 (CreateTicket tool 사용)
+- 사용자의 질문에 회사의 현재 상태와 방향성을 안내한다
+
+## Principles
+
+반드시 다음 문서를 읽고 회사의 원칙을 이해하라:
+- principles/goal.md
+- principles/business.md
+
+## 학습 기록
+
+세션이 끝나기 전, 이 세션에서 학습한 내용이 있다면 context-engineer 서브에이전트를 사용해서 기록하세요.
+`
+    saveAgentPrompt(rootDir, 'ceo', ceoPromptContent)
+
+    // 8. Copy context-engineer.md to CEO's agents/
+    const contextEngineerContent = fs.readFileSync(getContextEngineerPath(), 'utf-8')
+    const contextEngineerConfig = parseSubagentMd(contextEngineerContent)
+    saveAgentSubagent(rootDir, 'ceo', contextEngineerConfig)
+
+    // 9. Cleanup temp files
+    const tmpDir = path.join(rootDir, '.auto-startup', '.tmp')
+    if (fs.existsSync(tmpDir)) {
+      fs.rmSync(tmpDir, { recursive: true, force: true })
+    }
 
     state.step = 'completed'
     eventBus.emit('onboarding:status', { persona: state.persona, step: state.step })
@@ -242,9 +438,77 @@ export function createOnboardingServer(rootDir: string, eventBus: EventBus): Hon
   return app
 }
 
+async function spawnCEOSession(rootDir: string, persona: Persona, port: number): Promise<void> {
+  // Create tmp directory
+  const tmpDir = path.join(rootDir, '.auto-startup', '.tmp')
+  fs.mkdirSync(tmpDir, { recursive: true })
+
+  // 1. Create temp mcp.json
+  const mcpConfig = {
+    mcpServers: {
+      'auto-startup': {
+        command: 'node',
+        args: [getMcpServerPath(), '--root', rootDir, '--port', String(port)],
+      },
+    },
+  }
+  const mcpConfigPath = path.join(tmpDir, 'onboarding-mcp.json')
+  fs.writeFileSync(mcpConfigPath, JSON.stringify(mcpConfig, null, 2))
+
+  // 2. Create combined system prompt (persona + onboarding system)
+  const personaPrompt = fs.readFileSync(getPersonaPromptPath(persona), 'utf-8')
+  const onboardingSystemPrompt = fs.readFileSync(getOnboardingSystemPromptPath(), 'utf-8')
+  const combinedPrompt = `${personaPrompt}\n\n${onboardingSystemPrompt}`
+  const promptPath = path.join(tmpDir, 'onboarding-prompt.md')
+  fs.writeFileSync(promptPath, combinedPrompt)
+
+  // 3. Spawn claude with --print mode (async)
+  const flags = [
+    '--print',
+    '-p',
+    '온보딩을 시작하세요. 사용자에게 첫 질문을 하세요.',
+    '--append-system-prompt-file',
+    promptPath,
+    '--mcp-config',
+    mcpConfigPath,
+  ]
+
+  console.log('[onboarding] Spawning CEO session with persona:', persona)
+
+  const proc = spawn('claude', flags, {
+    cwd: rootDir,
+    stdio: ['pipe', 'pipe', 'pipe'],
+    env: { ...process.env },
+  })
+
+  proc.stdout?.on('data', (data) => {
+    console.log('[ceo-session]', data.toString())
+  })
+
+  proc.stderr?.on('data', (data) => {
+    console.error('[ceo-session:err]', data.toString())
+  })
+
+  proc.on('close', (code) => {
+    console.log('[onboarding] CEO session exited with code:', code)
+    // Cleanup tmp files on session end
+    try {
+      if (fs.existsSync(mcpConfigPath)) fs.unlinkSync(mcpConfigPath)
+      if (fs.existsSync(promptPath)) fs.unlinkSync(promptPath)
+    } catch {
+      // Ignore cleanup errors
+    }
+  })
+
+  proc.on('error', (err) => {
+    console.error('[onboarding] Failed to spawn CEO session:', err)
+  })
+}
+
 export function resetOnboardingState(): void {
   state.persona = null
   state.step = 'persona'
+  state.answers = []
 }
 
 export function getOnboardingState(): OnboardingState {

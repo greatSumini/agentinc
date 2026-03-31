@@ -47,7 +47,7 @@ export interface ServerInstance {
 
 export function startOnboardingServer(rootDir: string, port: number): ServerInstance {
   const eventBus = new EventBus()
-  const app = createOnboardingServer(rootDir, eventBus)
+  const app = createOnboardingServer(rootDir, eventBus, port)
 
   setupStaticServing(app)
 
