@@ -9,7 +9,8 @@
       "phase": 0,
       "name": "cleanup",
       "status": "completed",
-      "started_at": "2026-04-01T05:28:10+0900"
+      "started_at": "2026-04-01T05:28:10+0900",
+      "completed_at": "2026-04-01T05:30:48+0900"
     },
     {
       "phase": 1,
