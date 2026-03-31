@@ -5,18 +5,71 @@
   "totalPhases": 13,
   "created_at": "2026-04-01T15:00:00+0900",
   "phases": [
-    { "phase": 0, "name": "cleanup", "status": "pending" },
-    { "phase": 1, "name": "scaffold", "status": "pending" },
-    { "phase": 2, "name": "core-types-store", "status": "pending" },
-    { "phase": 3, "name": "ticket-store-service", "status": "pending" },
-    { "phase": 4, "name": "claude-runner", "status": "pending" },
-    { "phase": 5, "name": "daemon", "status": "pending" },
-    { "phase": 6, "name": "hono-api-routes", "status": "pending" },
-    { "phase": 7, "name": "mcp-servers", "status": "pending" },
-    { "phase": 8, "name": "onboarding-orchestration", "status": "pending" },
-    { "phase": 9, "name": "web-onboarding", "status": "pending" },
-    { "phase": 10, "name": "web-dashboard", "status": "pending" },
-    { "phase": 11, "name": "cli-entry", "status": "pending" },
-    { "phase": 12, "name": "docs-cleanup", "status": "pending" }
+    {
+      "phase": 0,
+      "name": "cleanup",
+      "status": "pending",
+      "started_at": "2026-04-01T05:28:10+0900"
+    },
+    {
+      "phase": 1,
+      "name": "scaffold",
+      "status": "pending"
+    },
+    {
+      "phase": 2,
+      "name": "core-types-store",
+      "status": "pending"
+    },
+    {
+      "phase": 3,
+      "name": "ticket-store-service",
+      "status": "pending"
+    },
+    {
+      "phase": 4,
+      "name": "claude-runner",
+      "status": "pending"
+    },
+    {
+      "phase": 5,
+      "name": "daemon",
+      "status": "pending"
+    },
+    {
+      "phase": 6,
+      "name": "hono-api-routes",
+      "status": "pending"
+    },
+    {
+      "phase": 7,
+      "name": "mcp-servers",
+      "status": "pending"
+    },
+    {
+      "phase": 8,
+      "name": "onboarding-orchestration",
+      "status": "pending"
+    },
+    {
+      "phase": 9,
+      "name": "web-onboarding",
+      "status": "pending"
+    },
+    {
+      "phase": 10,
+      "name": "web-dashboard",
+      "status": "pending"
+    },
+    {
+      "phase": 11,
+      "name": "cli-entry",
+      "status": "pending"
+    },
+    {
+      "phase": 12,
+      "name": "docs-cleanup",
+      "status": "pending"
+    }
   ]
 }

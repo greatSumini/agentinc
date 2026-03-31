@@ -191,8 +191,15 @@ class Spinner:
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._spin, daemon=True)
         self._start_time = 0.0
+        self._is_tty = sys.stderr.isatty()
 
     def _spin(self):
+        if self._is_tty:
+            self._spin_tty()
+        else:
+            self._spin_quiet()
+
+    def _spin_tty(self):
         chars = itertools.cycle(SPINNER_CHARS)
         while not self._stop.is_set():
             elapsed = int(time.monotonic() - self._start_time)
@@ -202,6 +209,19 @@ class Spinner:
         # Clear the line
         sys.stderr.write("\r" + " " * (len(self._message) + 20) + "\r")
         sys.stderr.flush()
+
+    def _spin_quiet(self):
+        """Non-TTY: print status every 60s to avoid flooding captured output."""
+        sys.stderr.write(f"  ▶ {self._message}\n")
+        sys.stderr.flush()
+        last_report = 0
+        while not self._stop.is_set():
+            elapsed = int(time.monotonic() - self._start_time)
+            if elapsed - last_report >= 60:
+                last_report = elapsed
+                sys.stderr.write(f"    … {elapsed}s elapsed\n")
+                sys.stderr.flush()
+            self._stop.wait(1)
 
     def __enter__(self):
         self._start_time = time.monotonic()
