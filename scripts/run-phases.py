@@ -130,7 +130,7 @@ def git_ensure_branch(task_name: str):
 
 def git_commit_docs(task_name: str, gh_env: dict[str, str]):
     """Commit task plan files (tasks/, docs/, prompts/) before phase execution."""
-    git_run("add", "tasks/", "spec/", "prompts/")
+    git_run("add", "tasks/", "prompts/")
 
     if git_run("diff", "--cached", "--quiet").returncode == 0:
         return
@@ -356,7 +356,7 @@ def main():
 
     # --- Header ---
     print(f"\n{'='*60}")
-    print(f"  agentinc Phase Runner")
+    print(f"  auto-startup Phase Runner")
     print(
         f"  Task: {task_name} | Phases: {total_phases} | Pending: {pending_count}")
     if gh_user:
