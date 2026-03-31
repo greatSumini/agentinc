@@ -50,8 +50,9 @@
     {
       "phase": 6,
       "name": "hono-api-routes",
-      "status": "pending",
-      "started_at": "2026-04-01T06:04:30+0900"
+      "status": "completed",
+      "started_at": "2026-04-01T06:04:30+0900",
+      "completed_at": "2026-04-01T06:08:00+0900"
     },
     {
       "phase": 7,
