@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "dist"
+  },
+  "include": [
+    "src/core/**/*",
+    "src/server/**/*",
+    "src/cli/**/*",
+    "src/claude-runner/**/*",
+    "src/daemon/**/*",
+    "src/mcp/**/*",
+    "src/templates/**/*"
+  ]
+}
