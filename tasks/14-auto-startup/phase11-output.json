@@ -1,0 +1,7 @@
+{
+  "phase": 11,
+  "name": "cli-entry",
+  "exitCode": 0,
+  "stdout": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"duration_ms\":109014,\"duration_api_ms\":115349,\"num_turns\":27,\"result\":\"Phase 11 완료.\\n\\n**완료된 작업:**\\n1. `src/cli/index.ts` 전체 리팩터링 — 온보딩/노멀 모드 통합, PID 파일 관리, graceful shutdown\\n2. `package.json`에 `dev:web` 스크립트 추가\\n3. shebang (`#!/usr/bin/env node`)이 tsc 빌드 후에도 보존됨 확인\\n4. 모든 테스트 통과 (115 tests)\\n5. AC 검증 완료 (health endpoint, 서버 시작/종료)\\n6. `tasks/14-auto-startup/index.json` 업데이트\\n7. 커밋 완료: `e0067c3`\",\"session_id\":\"7ebc33b2-f9fc-449e-9431-ecb64e2b2ce5\",\"total_cost_usd\":0.64968925,\"usage\":{\"input_tokens\":134,\"cache_creation_input_tokens\":29163,\"cache_read_input_tokens\":649495,\"output_tokens\":5080,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":0,\"ephemeral_5m_input_tokens\":29163}},\"modelUsage\":{\"claude-haiku-4-5-20251001\":{\"inputTokens\":12303,\"outputTokens\":540,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.015002999999999997,\"contextWindow\":200000},\"claude-opus-4-5-20251101\":{\"inputTokens\":134,\"outputTokens\":5080,\"cacheReadInputTokens\":649495,\"cacheCreationInputTokens\":29163,\"webSearchRequests\":0,\"costUSD\":0.6346862499999999,\"contextWindow\":200000}},\"permission_denials\":[],\"uuid\":\"8d4b0dc3-7de3-451d-b723-09a52cd39c6e\"}\n",
+  "stderr": ""
+}
