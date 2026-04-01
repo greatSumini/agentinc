@@ -1,0 +1,12 @@
+{
+  "project": "auto-startup",
+  "task": "docs-refresh",
+  "prompt": "auto-startup 리뉴얼 후 누락된 문서 반영. docs/ 삭제, 무효 prompts 삭제, spec/ 재생성 (spec.md, architecture.md, testing.md, adr.md, web.md, external/ 복원), README.md 재작성, 산발적 agentinc 참조 수정.",
+  "totalPhases": 3,
+  "created_at": "2026-04-01T16:30:00+0900",
+  "phases": [
+    { "phase": 0, "name": "cleanup-refs", "status": "pending" },
+    { "phase": 1, "name": "spec-docs", "status": "pending" },
+    { "phase": 2, "name": "readme", "status": "pending" }
+  ]
+}
