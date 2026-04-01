@@ -1,64 +1,60 @@
-<p align="center">
-  <img src="./assets/banner.png" alt="agentinc" width="100%" />
-</p>
+# auto-startup
 
-<p align="center">
-  <strong>Run Claude Code like a company</strong> — organize AI agents by role, run them with one command.
-</p>
-
-<p align="center">
-  <a href="https://www.npmjs.com/package/@greatsumini/agentinc"><img src="https://img.shields.io/npm/v/@greatsumini/agentinc.svg" alt="npm version" /></a>
-  <a href="https://github.com/greatSumini/agentinc/blob/main/LICENSE"><img src="https://img.shields.io/npm/l/@greatsumini/agentinc.svg" alt="license" /></a>
-</p>
-
----
-
-## The Problem
-
-Claude Code supports subagents, skills, hooks, MCP, and settings.
-But there's **no way to bundle them per role.**
-
-A frontend developer needs a different setup than a backend developer.
-If you're manually combining CLI flags or copying configs every time — that's what agentinc solves.
-
-## The Solution
-
-**Agent = Role bundle.**
-System prompt + subagents + skills + hooks + MCP — all in one unit.
-
-```bash
-agentinc run backend-dev "Optimize the slow query"
-# → runs with db-expert subagent, deploy skill, backend-dev prompt
-```
-
-`.agentinc/` is committed to git. Your entire team shares the same agent setup.
-
-## Features
-
-- **Role-based execution**: `agentinc run <agent>` — one command switches everything
-- **Daemon mode**: Ticket-based async task processing with agent workers
-- **GitHub Webhook**: PR comment → auto ticket → agent handles it
-- **Team sharing**: Commit `.agentinc/` and sync the whole team
+AI 에이전트 기반의 "회사"를 로컬에서 운영하는 CLI 도구. 목표와 원칙만 제시하면, AI CEO가 에이전트를 관리하고 업무를 할당한다.
 
 ## Quick Start
 
 ```bash
-npm install -g @greatsumini/agentinc
-agentinc init
-agentinc run developer "Fix the login bug"
+npx auto-startup
 ```
 
-> Requires [Claude Code](https://docs.anthropic.com/en/docs/claude-code) CLI installed and authenticated.
+또는 글로벌 설치:
 
-## Documentation
+```bash
+npm install -g auto-startup
+auto-startup
+```
 
-| Guide | Description |
-|---|---|
-| [Getting Started](docs/getting-started.md) | Install, init, first agent run |
-| [CLI Reference](docs/cli-reference.md) | All commands and options |
-| [Daemon Mode](docs/daemon-mode.md) | Ticket server, agent workers |
-| [GitHub Webhook](docs/webhook-integration.md) | PR automation setup |
-| [Configuration](docs/configuration.md) | config.json, agent.json schema |
+## How It Works
+
+1. **CEO 선택** — 일론 머스크, 피터 틸, 스티브 잡스, 빌 게이츠 중 CEO 페르소나를 고른다
+2. **온보딩** — CEO가 회사의 목표와 가치를 질문한다
+3. **회사 생성** — 답변을 기반으로 `principles/` 문서를 생성한다
+4. **운영** — 대시보드에서 에이전트 상태를 확인하고, CEO와 대화하며 업무를 지시한다
+
+## Architecture
+
+- **Hono** — 로컬 API 서버
+- **Vite + React** — 웹 대시보드
+- **Claude Code** — AI 에이전트 실행
+- **MCP** — CEO와 웹 UI 양방향 통신
+
+## 생성되는 파일
+
+```
+your-project/
+├── principles/
+│   ├── goal.md          # 회사의 존재 이유
+│   └── business.md      # 핵심 가치
+├── CLAUDE.md            # 원칙 참조
+├── .claude/settings.json # 세션 hooks
+└── .auto-startup/       # 내부 상태
+```
+
+## Development
+
+```bash
+npm install
+npm run dev        # 서버 직접 실행
+npm run dev:web    # Vite dev 서버 (프론트엔드)
+npm run build      # 프로덕션 빌드
+npm test           # 테스트
+```
+
+## Requirements
+
+- Node.js 18+
+- [Claude Code](https://claude.ai/code) CLI 설치 및 인증
 
 ## License
 

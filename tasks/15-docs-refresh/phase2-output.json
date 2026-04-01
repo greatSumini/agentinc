@@ -1,0 +1,7 @@
+{
+  "phase": 2,
+  "name": "readme",
+  "exitCode": 0,
+  "stdout": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"duration_ms\":48935,\"duration_api_ms\":60826,\"num_turns\":14,\"result\":\"Phase 2 완료.\\n\\n**결과:**\\n- README.md 전면 재작성 (agentinc 참조 제거, 배지/배너 제거)\\n- AC 검증 통과: auto-startup 포함, agentinc 미포함, Quick Start 포함, 빌드/테스트 성공\\n- index.json phase 2 status → `completed`\\n- 커밋: `b03971f feat(docs-refresh): phase 2 — readme`\",\"session_id\":\"b1039e7a-8489-4d8a-a959-c955fb68ea79\",\"total_cost_usd\":0.2930255,\"usage\":{\"input_tokens\":2,\"cache_creation_input_tokens\":18990,\"cache_read_input_tokens\":162054,\"output_tokens\":2392,\"server_tool_use\":{\"web_search_requests\":0,\"web_fetch_requests\":0},\"service_tier\":\"standard\",\"cache_creation\":{\"ephemeral_1h_input_tokens\":0,\"ephemeral_5m_input_tokens\":18990}},\"modelUsage\":{\"claude-opus-4-5-20251101\":{\"inputTokens\":3948,\"outputTokens\":2509,\"cacheReadInputTokens\":162054,\"cacheCreationInputTokens\":18990,\"webSearchRequests\":0,\"costUSD\":0.28217949999999997,\"contextWindow\":200000},\"claude-haiku-4-5-20251001\":{\"inputTokens\":8251,\"outputTokens\":519,\"cacheReadInputTokens\":0,\"cacheCreationInputTokens\":0,\"webSearchRequests\":0,\"costUSD\":0.010846000000000001,\"contextWindow\":200000}},\"permission_denials\":[],\"uuid\":\"a85bdbd8-3207-4ed8-8261-d06a711e7e2e\"}\n",
+  "stderr": ""
+}
