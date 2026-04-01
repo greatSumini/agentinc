@@ -107,7 +107,7 @@ gh release create v{version} --title "v{version}" --notes-file /tmp/release-note
 
 아래 커맨드를 실행하여 배포 결과를 검증한다:
 
-1. `npm view agentinc version` — 새 버전이 반영되었는가
+1. `npm view auto-startup version` — 새 버전이 반영되었는가
 2. `gh release view v{version}` — GitHub Release가 존재하는가
 
 결과를 요약 테이블로 출력한다:

@@ -5,8 +5,22 @@
   "totalPhases": 3,
   "created_at": "2026-04-01T16:30:00+0900",
   "phases": [
-    { "phase": 0, "name": "cleanup-refs", "status": "pending" },
-    { "phase": 1, "name": "spec-docs", "status": "pending" },
-    { "phase": 2, "name": "readme", "status": "pending" }
+    {
+      "phase": 0,
+      "name": "cleanup-refs",
+      "status": "completed",
+      "started_at": "2026-04-01T12:23:51+0900",
+      "completed_at": "2026-04-01T12:27:00+0900"
+    },
+    {
+      "phase": 1,
+      "name": "spec-docs",
+      "status": "pending"
+    },
+    {
+      "phase": 2,
+      "name": "readme",
+      "status": "pending"
+    }
   ]
 }

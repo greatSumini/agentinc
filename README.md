@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./assets/banner.png" alt="agentinc" width="100%" />
+  <img src="./assets/banner.png" alt="auto-startup" width="100%" />
 </p>
 
 <p align="center">
@@ -7,8 +7,8 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/@greatsumini/agentinc"><img src="https://img.shields.io/npm/v/@greatsumini/agentinc.svg" alt="npm version" /></a>
-  <a href="https://github.com/greatSumini/agentinc/blob/main/LICENSE"><img src="https://img.shields.io/npm/l/@greatsumini/agentinc.svg" alt="license" /></a>
+  <a href="https://www.npmjs.com/package/auto-startup"><img src="https://img.shields.io/npm/v/auto-startup.svg" alt="npm version" /></a>
+  <a href="https://github.com/vibemafiaclub/auto-startup/blob/main/LICENSE"><img src="https://img.shields.io/npm/l/auto-startup.svg" alt="license" /></a>
 </p>
 
 ---
@@ -19,7 +19,7 @@ Claude Code supports subagents, skills, hooks, MCP, and settings.
 But there's **no way to bundle them per role.**
 
 A frontend developer needs a different setup than a backend developer.
-If you're manually combining CLI flags or copying configs every time — that's what agentinc solves.
+If you're manually combining CLI flags or copying configs every time — that's what auto-startup solves.
 
 ## The Solution
 
@@ -27,25 +27,25 @@ If you're manually combining CLI flags or copying configs every time — that's 
 System prompt + subagents + skills + hooks + MCP — all in one unit.
 
 ```bash
-agentinc run backend-dev "Optimize the slow query"
+auto-startup run backend-dev "Optimize the slow query"
 # → runs with db-expert subagent, deploy skill, backend-dev prompt
 ```
 
-`.agentinc/` is committed to git. Your entire team shares the same agent setup.
+`.auto-startup/` is committed to git. Your entire team shares the same agent setup.
 
 ## Features
 
-- **Role-based execution**: `agentinc run <agent>` — one command switches everything
+- **Role-based execution**: `auto-startup run <agent>` — one command switches everything
 - **Daemon mode**: Ticket-based async task processing with agent workers
 - **GitHub Webhook**: PR comment → auto ticket → agent handles it
-- **Team sharing**: Commit `.agentinc/` and sync the whole team
+- **Team sharing**: Commit `.auto-startup/` and sync the whole team
 
 ## Quick Start
 
 ```bash
-npm install -g @greatsumini/agentinc
-agentinc init
-agentinc run developer "Fix the login bug"
+npm install -g auto-startup
+auto-startup init
+auto-startup run developer "Fix the login bug"
 ```
 
 > Requires [Claude Code](https://docs.anthropic.com/en/docs/claude-code) CLI installed and authenticated.
