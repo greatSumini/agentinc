@@ -1,20 +1,35 @@
 {
-  "name": "agentinc-monorepo",
-  "private": true,
+  "name": "auto-startup",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "auto-startup": "./dist/cli/index.js"
+  },
   "scripts": {
-    "build": "pnpm -r build",
-    "build:web": "pnpm --filter @agentinc/web build && pnpm run copy:web",
-    "copy:web": "rm -rf packages/server/public && cp -r packages/web/dist packages/server/public",
-    "dev": "pnpm build && pnpm run /^dev:/",
-    "dev:watch": "pnpm -r --parallel dev",
-    "dev:server": "node packages/cli/dist/index.js start",
-    "test": "pnpm -r test",
-    "clean": "pnpm -r clean",
-    "prepublish:cli": "pnpm build && pnpm build:web",
-    "publish:cli": "pnpm prepublish:cli && pnpm --filter @agentinc/cli publish"
+    "dev": "tsx src/cli/index.ts",
+    "dev:web": "vite --config vite.config.ts",
+    "build": "vite build && tsc -p tsconfig.server.json",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.19.12",
+    "gray-matter": "^4.0.3",
+    "hono": "^4.12.9",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.30.3"
   },
   "devDependencies": {
-    "typescript": "^5.7.0"
-  },
-  "packageManager": "pnpm@9.12.2+sha512.22721b3a11f81661ae1ec68ce1a7b879425a1ca5b991c975b074ac220b187ce56c708fe5db69f4c962c989452eee76c82877f4ee80f474cebd61ee13461b6228"
+    "@types/node": "^25.5.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^4.7.0",
+    "autoprefixer": "^10.4.27",
+    "postcss": "^8.5.8",
+    "tailwindcss": "^3.4.19",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.9"
+  }
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-agentinc phase runner.
+auto-startup phase runner.
 Reads tasks/{task-dir}/index.json, finds the next pending phase,
 spawns a Claude Code session with the phase prompt, and updates status.
 
@@ -130,7 +130,7 @@ def git_ensure_branch(task_name: str):
 
 def git_commit_docs(task_name: str, gh_env: dict[str, str]):
     """Commit task plan files (tasks/, docs/, prompts/) before phase execution."""
-    git_run("add", "tasks/", "spec/", "prompts/")
+    git_run("add", "tasks/", "prompts/")
 
     if git_run("diff", "--cached", "--quiet").returncode == 0:
         return
@@ -191,8 +191,15 @@ class Spinner:
         self._stop = threading.Event()
         self._thread = threading.Thread(target=self._spin, daemon=True)
         self._start_time = 0.0
+        self._is_tty = sys.stderr.isatty()
 
     def _spin(self):
+        if self._is_tty:
+            self._spin_tty()
+        else:
+            self._spin_quiet()
+
+    def _spin_tty(self):
         chars = itertools.cycle(SPINNER_CHARS)
         while not self._stop.is_set():
             elapsed = int(time.monotonic() - self._start_time)
@@ -202,6 +209,19 @@ class Spinner:
         # Clear the line
         sys.stderr.write("\r" + " " * (len(self._message) + 20) + "\r")
         sys.stderr.flush()
+
+    def _spin_quiet(self):
+        """Non-TTY: print status every 60s to avoid flooding captured output."""
+        sys.stderr.write(f"  ▶ {self._message}\n")
+        sys.stderr.flush()
+        last_report = 0
+        while not self._stop.is_set():
+            elapsed = int(time.monotonic() - self._start_time)
+            if elapsed - last_report >= 60:
+                last_report = elapsed
+                sys.stderr.write(f"    … {elapsed}s elapsed\n")
+                sys.stderr.flush()
+            self._stop.wait(1)
 
     def __enter__(self):
         self._start_time = time.monotonic()
@@ -327,7 +347,7 @@ def main():
         sys.exit(1)
 
     index = load_index(index_file)
-    project_name = index.get("project", "agentinc")
+    project_name = index.get("project", "auto-startup")
     task_name = index.get("task", task_dir_name)
     total_phases = index.get("totalPhases", len(index["phases"]))
     pending_count = sum(1 for p in index["phases"] if p["status"] == "pending")
@@ -336,7 +356,7 @@ def main():
 
     # --- Header ---
     print(f"\n{'='*60}")
-    print(f"  agentinc Phase Runner")
+    print(f"  auto-startup Phase Runner")
     print(
         f"  Task: {task_name} | Phases: {total_phases} | Pending: {pending_count}")
     if gh_user:
@@ -434,14 +454,6 @@ def main():
                     p["completed_at"] = ts_end
                     break
             save_index(index_file, fresh_index)
-
-            # Generate docs-diff.md after phase 0 (docs update)
-            if phase_num == 0:
-                subprocess.run(
-                    ["python3", str(
-                        ROOT / "scripts" / "gen-spec-diff.py"), str(task_dir), baseline],
-                    cwd=str(ROOT),
-                )
 
             git_commit_phase(task_name, task_dir_name,
                              phase_num, phase_name, gh_env)

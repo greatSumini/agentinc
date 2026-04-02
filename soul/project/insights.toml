@@ -1,14 +1,14 @@
 [[entries]]
 id = 1
 created_at = "2026-03-18"
-last_used_at = "2026-03-21"
-content = """agentinc는 Claude Code를 "회사처럼" 운영하게 해주는 오픈소스. 핵심 추상화는 `agent`(직무 단위), subagent/skills/hooks를 agent별로 묶는 구조."""
+last_used_at = "2026-04-01"
+content = """auto-startup은 CLI 도구로, 실행 시 로컬 웹 서버를 띄워 AI 에이전트 기반의 "회사"를 운영한다. 핵심 추상화는 온보딩(CEO 에이전트) → 원칙(principles/) → 에이전트 워커 구조."""
 
 [[entries]]
 id = 2
 created_at = "2026-03-18"
-last_used_at = "2026-03-22"
-content = """핵심 가치제안: "CEO처럼 목표만 제시하면 AI agent가 알아서 실행". 대시보드로 진행상황 확인 + 피드백."""
+last_used_at = "2026-04-01"
+content = """핵심 가치제안: "회사의 목표와 원칙만 제시하면 AI 에이전트가 알아서 실행". 온보딩 → 대시보드로 진행상황 확인 + 피드백."""
 
 [[entries]]
 id = 3
@@ -19,32 +19,14 @@ content = "목표: YC Batch 지원 전 시장 검증. 2주 내 런칭 필수."
 [[entries]]
 id = 4
 created_at = "2026-03-18"
-last_used_at = "2026-03-21"
-content = "기본 agent 유형: 개발자, 디자이너, HR."
+last_used_at = "2026-04-01"
+content = "에이전트 구조: CEO 에이전트(온보딩) + context-engineer 서브에이전트(원칙 기반 작업 수행)."
 
 [[entries]]
 id = 5
 created_at = "2026-03-19"
-last_used_at = "2026-03-21"
-content = """핵심 가설 A: "Claude Code 유저는 직무별 agent 분리를 원한다" → CLI MVP로 검증"""
-
-[[entries]]
-id = 6
-created_at = "2026-03-19"
-last_used_at = "2026-03-21"
-content = "검증 기준: 설치 유저 중 30%+가 agent 2개 이상 사용"
-
-[[entries]]
-id = 7
-created_at = "2026-03-19"
-last_used_at = "2026-03-21"
-content = "subagent/skills는 agent와 lifecycle이 다름 → 공용 풀 + 참조 구조로 결정"
-
-[[entries]]
-id = 8
-created_at = "2026-03-19"
-last_used_at = "2026-03-21"
-content = "아키텍처/ADR 상세 내용은 /spec/architecture.md, /spec/adr.md 참조"
+last_used_at = "2026-04-01"
+content = """핵심 가설: "AI 에이전트에게 명확한 원칙(principles/)을 제공하면 더 일관된 결과물을 생성한다" → CLI MVP로 검증"""
 
 [[entries]]
 id = 9
@@ -55,11 +37,17 @@ content = "subagent/skill 저장 형식을 JSON → frontmatter MD로 전환 결
 [[entries]]
 id = 10
 created_at = "2026-03-22"
-last_used_at = "2026-03-22"
-content = "agentinc는 향후 원격 서버에 호스팅될 것을 전제로 설계한다. 따라서 파일시스템 직접 접근에 의존하지 않고, CLI 커맨드라는 인터페이스를 통해 모든 CRUD를 수행하도록 하여, IStore 추상화 교체 시 변경 범위를 최소화한다."
+last_used_at = "2026-04-01"
+content = "auto-startup은 로컬 실행 기반이지만, 추후 원격 서버 호스팅을 고려하여 설계한다. IStore 추상화를 통해 파일시스템 의존성을 격리하여 교체 시 변경 범위를 최소화한다."
 
 [[entries]]
 id = 11
 created_at = "2026-03-22"
-last_used_at = "2026-03-22"
-content = "agentinc start로 Ticket Server + Agent workers 데몬 모드 실행. ticket 기반 작업 관리 시스템 도입 (ADR-017~019). agent 간 CC(참조) 기능, 상태 머신 기반 전이 검증, 낙관적 락 동시성 제어 포함."
+last_used_at = "2026-04-01"
+content = "auto-startup 실행 → daemon(orchestrator + agent-worker) 시작 → ticket 기반 작업 관리. 상태 머신 기반 전이 검증, 낙관적 락 동시성 제어 포함."
+
+[[entries]]
+id = 12
+created_at = "2026-04-01"
+last_used_at = "2026-04-01"
+content = """auto-startup 전환의 핵심 가치: 복잡한 "회사 운영" 시뮬레이션 대신, 온보딩 → 원칙(principles/) 정의 → 에이전트 기반 실행이라는 단순한 흐름에 집중. 사용자는 목표와 원칙만 제시하면 된다."""

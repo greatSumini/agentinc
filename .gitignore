@@ -1,11 +1,25 @@
-node_modules/
+# Build output
 dist/
-*.tgz
-*.log
+
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.local
+
+# Auto-startup runtime
+.auto-startup/.pid
+.auto-startup/.tmp/
+
+# OS
 .DS_Store
+
+# Logs
+*.log
+
+# Python
 __pycache__/
 
-.agentinc
-
 # Build artifacts
-packages/server/public/
+*.tgz

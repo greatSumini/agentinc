@@ -1,0 +1,101 @@
+{
+  "project": "auto-startup",
+  "task": "auto-startup",
+  "prompt": "프로젝트명을 auto-startup으로 변경하고, agentinc 모노레포(cli/core/server/web)를 Vite+Hono 단일 패키지로 전환. CLI를 auto-startup 하나로 통합, 온보딩→대시보드 웹 UI + CEO 에이전트 daemon 구조로 재설계. skill/sub-agent/hooks를 per-agent 구조로 변경하고, context-engineer를 공통 sub-agent로 도입.",
+  "totalPhases": 13,
+  "created_at": "2026-04-01T15:00:00+0900",
+  "phases": [
+    {
+      "phase": 0,
+      "name": "cleanup",
+      "status": "completed",
+      "started_at": "2026-04-01T05:28:10+0900",
+      "completed_at": "2026-04-01T05:30:48+0900"
+    },
+    {
+      "phase": 1,
+      "name": "scaffold",
+      "status": "completed",
+      "started_at": "2026-04-01T05:30:48+0900",
+      "completed_at": "2026-04-01T05:38:14+0900"
+    },
+    {
+      "phase": 2,
+      "name": "core-types-store",
+      "status": "completed",
+      "started_at": "2026-04-01T05:38:14+0900",
+      "completed_at": "2026-04-01T05:42:56+0900"
+    },
+    {
+      "phase": 3,
+      "name": "ticket-store-service",
+      "status": "completed",
+      "started_at": "2026-04-01T05:42:56+0900",
+      "completed_at": "2026-04-01T05:56:18+0900"
+    },
+    {
+      "phase": 4,
+      "name": "claude-runner",
+      "status": "completed",
+      "started_at": "2026-04-01T05:56:18+0900",
+      "completed_at": "2026-04-01T06:02:11+0900"
+    },
+    {
+      "phase": 5,
+      "name": "daemon",
+      "status": "completed",
+      "started_at": "2026-04-01T06:02:11+0900",
+      "completed_at": "2026-04-01T06:04:43+0900"
+    },
+    {
+      "phase": 6,
+      "name": "hono-api-routes",
+      "status": "completed",
+      "started_at": "2026-04-01T06:04:30+0900",
+      "completed_at": "2026-04-01T06:07:39+0900"
+    },
+    {
+      "phase": 7,
+      "name": "mcp-servers",
+      "status": "completed",
+      "started_at": "2026-04-01T06:07:39+0900",
+      "completed_at": "2026-04-01T06:11:18+0900"
+    },
+    {
+      "phase": 8,
+      "name": "onboarding-orchestration",
+      "status": "completed",
+      "started_at": "2026-04-01T06:11:18+0900",
+      "completed_at": "2026-04-01T06:15:46+0900"
+    },
+    {
+      "phase": 9,
+      "name": "web-onboarding",
+      "status": "completed",
+      "started_at": "2026-04-01T06:15:46+0900",
+      "completed_at": "2026-04-01T06:19:35+0900"
+    },
+    {
+      "phase": 10,
+      "name": "web-dashboard",
+      "status": "completed",
+      "started_at": "2026-04-01T06:19:35+0900",
+      "completed_at": "2026-04-01T06:25:53+0900"
+    },
+    {
+      "phase": 11,
+      "name": "cli-entry",
+      "status": "completed",
+      "started_at": "2026-04-01T06:25:53+0900",
+      "completed_at": "2026-04-01T06:27:44+0900"
+    },
+    {
+      "phase": 12,
+      "name": "docs-cleanup",
+      "status": "completed",
+      "started_at": "2026-04-01T06:27:44+0900",
+      "completed_at": "2026-04-01T07:34:21+0900"
+    }
+  ],
+  "completed_at": "2026-04-01T07:34:21+0900"
+}

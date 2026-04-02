@@ -1,362 +1,225 @@
-# agentinc CLI Specification
+# auto-startup Specification
 
-## Overview
+## 개요
 
-agentinc는 Claude Code를 직무(agent) 단위로 조직화하여 실행할 수 있게 해주는 CLI 도구다.
-핵심 가치: "CEO처럼 목표를 제시하면, AI agent가 알아서 실행한다."
+auto-startup은 CLI 도구로, 실행 시 로컬 웹 서버를 띄워 AI 에이전트 기반의 "회사"를 운영한다. 사용자가 CEO 페르소나를 선택하고 온보딩 대화를 통해 회사를 설립하면, 에이전트들이 티켓 기반으로 업무를 처리한다.
 
-## CLI Commands
+## 실행 흐름
 
-### 프로젝트 초기화
+1. `auto-startup` 실행 → `isOnboarded(rootDir)` 확인
+2. **미완료**: 온보딩 서버 시작 → 브라우저 자동 오픈 → CEO 에이전트와 대화 → 회사 생성 → 서버 종료
+3. **완료**: 대시보드 서버 + Orchestrator 시작 → 에이전트 워커 폴링
 
-```bash
-agentinc init          # .agentinc/ 구조 생성 + 기본 agent 3개 (developer, designer, hr)
-agentinc init --force  # 기존 .agentinc/ 덮어쓰기
-```
-
-### Agent 실행
-
-```bash
-agentinc run <agent-name>                                    # interactive TUI
-agentinc run <agent-name> <prompt>                           # interactive + 초기 prompt
-agentinc run <agent-name> -p <prompt>                        # print mode (headless)
-agentinc run <agent-name> -p <prompt> --output-format json   # print mode + JSON 출력
-```
-
-- 포지셔널 인자: `<agent-name>` 필수, `[prompt]` 선택
-- `-p` (print mode): agentinc가 인식하는 first-class option. Claude Code CLI에도 동시에 전달된다. `-p` 사용 시 `<prompt>`는 필수.
-- `-p` 없이 실행하면 Claude Code의 interactive TUI가 터미널에 표시된다.
-- `-p`, `<prompt>` 외의 나머지 플래그는 전부 Claude Code CLI에 패스스루.
-- stdout/stderr는 그대로 사용자에게 파이프 (`stdio: 'inherit'`).
-
-### Agent 관리
-
-```bash
-agentinc agent create <name>    # agent 생성
-agentinc agent list             # agent 목록 조회
-agentinc agent remove <name>    # agent 삭제
-agentinc agent <name> show      # agent 상세 조회 (할당된 리소스 포함)
-```
-
-### 데몬 모드 실행
-
-```bash
-agentinc start          # Ticket Server + 모든 agent worker 시작
-```
-
-- Ticket Server를 시작하고 모든 등록된 agent의 worker 프로세스를 spawn
-- 각 agent worker는 자신에게 할당된 ticket을 polling하며 대기
-- 3분간 작업 없으면 해당 agent worker 자동 종료
-- 모든 agent 종료 후에도 서버는 유지 (Ctrl+C로 종료)
-- 기존 `agentinc run <agent>` 명령어는 1회성 실행으로 유지
-
-### Ticket 관리
-
-```bash
-agentinc ticket create --assignee <agent> [--cc <agents>] --title <title> --prompt <prompt> [--priority <p>]
-agentinc ticket list [--status <s>] [--assignee <a>]
-agentinc ticket show <id>
-agentinc ticket cancel <id>
-```
-
-### Webhook 관리
-
-```bash
-agentinc webhook setup <smee-url>  # smeeUrl을 config에 저장, enabled=true
-agentinc webhook status            # 현재 webhook 설정 표시
-agentinc webhook disable           # webhook.enabled = false
-```
-
-- `--cc`: 쉼표로 구분된 agent 목록 (예: `--cc designer,hr`)
-- `--priority`: `low`, `normal`, `high`, `urgent` (기본값: `normal`)
-- cc가 있으면 원본 ticket은 `blocked` 상태로 생성되고, cc된 agent 수만큼 `cc_review` ticket이 함께 생성됨
-- `cc_review` ticket 완료 시 의견이 원본 ticket의 comments에 복사됨
-
-### Agent 리소스 할당
-
-```bash
-agentinc agent <agent-name> add subagent <name>       # 공용 풀에 없으면 생성 + 할당
-agentinc agent <agent-name> add skill <name>
-agentinc agent <agent-name> add hook <name>
-agentinc agent <agent-name> remove subagent <name>    # 할당 해제
-agentinc agent <agent-name> remove skill <name>
-agentinc agent <agent-name> remove hook <name>
-```
-
-### 공용 리소스 관리
-
-```bash
-agentinc subagent add <name>       # 공용 풀에만 생성 (할당 없이)
-agentinc subagent list
-agentinc subagent remove <name>    # 삭제 (할당된 agent 있으면 경고)
-
-agentinc skill add|list|remove <name>
-agentinc hook add|list|remove <name>
-```
-
-## .agentinc/ 디렉토리 구조
+## 디렉토리 구조: .auto-startup/
 
 ```
-.agentinc/
-├── config.json              # 프로젝트 레벨 설정 (version 포함)
-├── subagents/               # 공용 subagent 풀
-│   ├── git-expert.md
-│   └── code-reviewer.md
-├── skills/                  # 공용 skills 풀
-│   └── deploy/
-│       ├── SKILL.md
-│       ├── scripts/
-│       ├── references/
-│       └── assets/
-├── hooks/                   # 공용 hooks 풀
-│   └── pre-commit.json
+.auto-startup/
+├── config.json           # Config 객체 (company, persona, onboardingCompleted, port)
+├── onboarding.json       # 온보딩 Q&A 기록
+├── .pid                  # 서버 프로세스 ID
 ├── agents/
-│   ├── developer/
-│   │   ├── agent.json       # 메타데이터 + 공용 리소스 참조
-│   │   ├── prompt.md        # 시스템 프롬프트
-│   │   ├── settings.json    # claude code settings
-│   │   └── mcp.json         # MCP 서버 설정
-│   ├── designer/
-│   │   └── ...
-│   └── hr/
-│       └── ...
-├── .tmp/                    # run 시 임시 디렉토리 (자동 생성/정리)
-│   └── run-{uuid}/
-│       └── .claude/skills/  # --add-dir용 skill 복사본
-└── runs/                    # 실행 로그
-    └── 2026-03-19T100000-uuid.json
+│   └── <name>/
+│       ├── agent.json    # AgentConfig
+│       ├── prompt.md     # 에이전트 시스템 프롬프트
+│       ├── agents/       # sub-agents (*.md with frontmatter)
+│       │   └── <subagent>.md
+│       ├── skills/       # 스킬 디렉토리
+│       │   └── <skill>/
+│       │       └── SKILL.md
+│       ├── hooks.json    # 에이전트별 hooks
+│       └── mcp.json      # MCP 서버 설정 (선택)
+├── tickets/
+│   └── <id>.json         # Ticket 객체
+└── .tmp/                 # 임시 파일 (실행 후 정리)
 ```
 
-## agent.json 스키마
+## 디렉토리 구조: 실행루트 생성물
 
-```json
-{
-  "name": "developer",
-  "description": "소프트웨어 개발 전담 에이전트",
-  "gh_user": "dev-bot",
-  "can_delegate": true,
-  "subagents": ["git-expert", "code-reviewer"],
-  "skills": ["deploy"],
-  "hooks": ["pre-commit"]
+온보딩 완료 시 실행 루트 디렉토리에 생성되는 파일:
+
+```
+<rootDir>/
+├── CLAUDE.md             # 회사 소개 및 principles 참조
+├── principles/
+│   ├── goal.md           # 회사 목표
+│   └── business.md       # 핵심 가치, 추구하지 않는 것
+└── .claude/
+    └── settings.json     # SessionEnd hook (daemon 통신)
+```
+
+## 에이전트 모델
+
+### CEO 에이전트
+
+온보딩 완료 시 자동 생성되는 기본 에이전트. `can_delegate: true`로 설정되어 다른 에이전트에게 업무를 위임할 수 있다.
+
+### context-engineer 공통 서브에이전트
+
+모든 에이전트의 공통 sub-agent로, 세션에서 학습한 내용을 skill, sub-agent, hooks로 기록한다.
+
+- 경로 제한: `.auto-startup/agents/<현재에이전트명>/` 하위에만 파일 생성
+- sub-agent: `agents/<이름>.md` (YAML frontmatter + markdown)
+- skill: `skills/<이름>/SKILL.md`
+- hooks: `hooks.json`
+
+### Per-agent 리소스
+
+각 에이전트는 자신의 디렉토리 내에 모든 리소스를 소유한다:
+
+- `agent.json` — AgentConfig
+- `prompt.md` — 시스템 프롬프트
+- `agents/` — sub-agents
+- `skills/` — 스킬
+- `hooks.json` — hooks
+
+### AgentConfig 타입
+
+```typescript
+interface AgentConfig {
+  name: string           // 에이전트 이름
+  description: string    // 에이전트 설명
+  gh_user?: string       // GitHub 사용자 (env-builder용)
+  can_delegate?: boolean // 다른 에이전트에게 업무 위임 가능 여부
 }
 ```
 
-- 모든 리소스 필드는 optional
-- 값은 공용 풀의 리소스 이름(식별자) 배열
-- `gh_user`: optional. gh CLI에 등록된 GitHub 계정명. 설정 시 해당 계정의 토큰과 Git identity로 commit/push/PR 수행. 미설정 시 현재 활성 계정 사용.
-- `can_delegate`: optional. true이면 다른 agent에게 ticket 위임(생성) 가능. 기본값 false.
+## 온보딩 플로우
 
-## Ticket JSON 스키마
+1. **페르소나 선택**: elon-musk, peter-thiel, steve-jobs, bill-gates 중 선택
+2. **첫 질문**: CEO가 회사 목표를 질문 (하드코딩된 메시지)
+3. **사용자 응답**: 자유 텍스트 입력
+4. **추가 질문 3개**: AskOnboardingQuestions tool로 a/b/c/기타 형식 질문
+5. **반복/종료 선택**: [바로 시작] → 회사명 확인, [질문 더 받기] → 추가 질문 3개
+6. **회사명 확인**: ConfirmCompanyName tool로 제안 → 수락 또는 직접 입력
+7. **완료**: CompleteOnboarding tool → config, principles, CEO 에이전트 생성
 
-```json
-{
-  "id": "uuid",
-  "title": "버그 수정",
-  "prompt": "로그인 버튼이 동작하지 않는 버그를 수정해주세요.",
-  "type": "task",
-  "parentTicketId": null,
-  "ccReviewTicketIds": ["cc-001", "cc-002"],
-  "assignee": "developer",
-  "priority": "normal",
-  "status": "ready",
-  "createdBy": "user",
-  "createdAt": "2026-03-22T10:00:00+0900",
-  "startedAt": null,
-  "completedAt": null,
-  "cancelledAt": null,
-  "result": null,
-  "comments": [],
-  "metadata": {
-    "source": "webhook",
-    "github": {
-      "repo": "owner/repo",
-      "prNumber": 42,
-      "prUrl": "https://github.com/owner/repo/pull/42",
-      "commentIds": ["c1", "c2"],
-      "eventType": "review_comment",
-      "reviewers": ["reviewer1"]
-    }
-  },
-  "version": 1
+### MCP 통신 흐름
+
+```
+웹 UI ← SSE ← Hono API ← MCP Server (stdio) ← CEO Claude session
+
+1. CEO Claude spawn → MCP tool 호출
+2. MCP → POST /api/onboarding/push-questions
+3. Hono → eventBus.emit() → SSE push to web
+4. 사용자 응답 → POST /api/onboarding/answers
+5. MCP → GET /api/onboarding/pending-answer (long-poll)
+6. 응답 반환 → Claude 계속 실행
+```
+
+## 티켓 시스템
+
+### Ticket 타입
+
+```typescript
+interface Ticket {
+  id: string                    // UUID
+  title: string                 // 제목
+  prompt: string                // 작업 내용
+  type: 'task' | 'cc_review'    // 일반 태스크 또는 CC 리뷰
+  parentTicketId?: string       // cc_review의 경우 부모 티켓 ID
+  ccReviewTicketIds?: string[]  // CC 리뷰 티켓 ID 목록
+  assignee: string              // 담당 에이전트
+  priority: 'low' | 'normal' | 'high' | 'urgent'
+  status: TicketStatus
+  createdBy: string             // 생성자
+  createdAt: string             // ISO 날짜
+  startedAt?: string            // in_progress 시작 시간
+  completedAt?: string          // 완료/실패 시간
+  cancelledAt?: string          // 취소 시간
+  result?: { exitCode: number; logPath: string }
+  comments: Comment[]
+  metadata?: Record<string, unknown>
+  version: number               // optimistic locking
 }
 ```
 
-- `type`: `task` (실제 작업) 또는 `cc_review` (참조 확인 요청)
-- `parentTicketId`: `cc_review`인 경우 원본 ticket ID
-- `ccReviewTicketIds`: `task`인 경우 연결된 `cc_review` ticket ID 목록
-- `status`: `blocked`, `ready`, `in_progress`, `completed`, `failed`, `cancelled`. 허용 전이: `blocked→ready|cancelled`, `ready→in_progress|cancelled`, `in_progress→completed|failed`. 터미널 상태(`completed`, `failed`, `cancelled`)에서는 전이 불가. **취소 제약**: task ticket 취소 시 in_progress인 cc_review가 있으면 취소 불가.
-- `priority`: `low`, `normal`, `high`, `urgent`. `cc_review`는 parent의 priority를 따름
-- `createdBy`: `user` 또는 agent name (위임 시)
-- `result`: 완료 시 `{ exitCode: number, logPath: string }`
-- `comments`: `[{ id, author, content, createdAt }]`
-- `metadata`: 선택적 필드. ticket 생성 출처 및 관련 정보
-- `metadata.source`: `'user'` | `'webhook'` | `'agent'`
-- `metadata.github`: GitHub PR 관련 정보 (webhook으로 생성된 경우)
-- `metadata.github.eventType`: `'review_comment'` | `'review_approved'` | `'conflict_resolve'`
-- `version`: 낙관적 락용 버전 번호
+### 상태 머신
 
-## config.json 확장
+```
+blocked → ready, cancelled
+ready → in_progress, cancelled
+in_progress → completed, failed
+completed → (terminal)
+failed → (terminal)
+cancelled → (terminal)
+```
 
-```json
-{
-  "version": "1.0.0",
-  "ticketServer": {
-    "port": 3847,
-    "pollingIntervalMs": 5000,
-    "idleTimeoutMs": 180000,
-    "heartbeatTimeoutMs": 30000
-  },
-  "webhook": {
-    "enabled": true,
-    "secret": "github-webhook-secret",
-    "smeeUrl": "https://smee.io/xxx",
-    "approveCondition": "any"
-  }
+### CC 시스템
+
+1. 티켓 생성 시 `cc` 배열 지정 → 각 CC 에이전트에 cc_review 티켓 생성
+2. 원본 티켓은 `blocked` 상태로 시작
+3. 모든 cc_review 티켓이 `completed` → 원본 티켓이 `ready`로 전환
+
+### 우선순위 정렬
+
+urgent(0) > high(1) > normal(2) > low(3) 순으로 정렬, 같은 우선순위는 createdAt 오름차순.
+
+## MCP 도구
+
+### 온보딩용 (onboarding-mcp)
+
+**AskOnboardingQuestions**
+```typescript
+input: {
+  questions: Array<{
+    id: string
+    text: string
+    options: [string, string, string]  // a, b, c 선택지
+  }>
+}
+output: {
+  answers: Array<{ questionId: string; answer: string }>
+  wantMoreQuestions: boolean
 }
 ```
 
-필드 설명:
-- `webhook.enabled`: webhook 수신 활성화 여부
-- `webhook.secret`: GitHub webhook secret (signature 검증용, 선택)
-- `webhook.smeeUrl`: smee.io 채널 URL (로컬 개발용, 선택)
-- `webhook.approveCondition`: `'any'` (기본, 최소 1개 approve) | `'all'` (모든 requested reviewer approve)
-
-## Subagent MD 형식
-
-YAML frontmatter + 마크다운 본문 구조:
-
-```markdown
----
-name: git-expert
-description: Git 버전 관리 전문가
-model: sonnet          # optional
-tools: Read, Glob, Grep  # optional
-maxTurns: 10           # optional
----
-
-You are a Git version control expert...
+**ConfirmCompanyName**
+```typescript
+input: { suggestedName: string }
+output: { confirmedName: string }
 ```
 
-**필수 필드**: `name`, `description`
-**Optional 필드**: `model`, `tools`, `disallowedTools`, `maxTurns`, `permissionMode`
-
-## Skill 디렉토리 형식
-
-Anthropic 공식 skills 프레임워크를 따르는 디렉토리 구조:
-
-```
-skills/
-└── deploy/
-    ├── SKILL.md              # 메타데이터(YAML frontmatter) + 지시문 (필수)
-    ├── scripts/              # 실행 가능한 코드, 유틸리티 (관례)
-    ├── references/           # 참조 문서, 스키마 (관례)
-    └── assets/               # 템플릿, 이미지 (관례)
-```
-
-### SKILL.md frontmatter
-
-```yaml
----
-name: deploy
-description: 배포 프로세스 관리
-resources:
-  - scripts/run-deploy.sh
-  - references/env-schema.json
-allowedTools: Bash, Read     # optional
-model: sonnet                # optional
----
-```
-
-**필수 필드**: `name`, `description`
-**Optional 필드**: `resources`, `model`, `allowedTools`, `context`, `agent`, `userInvocable`, `disableModelInvocation`, `argumentHint`
-
-### Skill 파일 관리
-
-```bash
-agentinc skill add-file <skill-name> <file-path> --content <content>
-agentinc skill add-file <skill-name> <file-path> --stdin
-agentinc skill edit-file <skill-name> <file-path> --content <content>
-agentinc skill edit-file <skill-name> <file-path> --stdin
-agentinc skill remove-file <skill-name> <file-path>
-```
-
-- `<file-path>`는 skill 디렉토리 기준 상대경로 (예: `scripts/run-deploy.sh`)
-- `add-file`: 파일 생성 + SKILL.md resources에 자동 등록
-- `remove-file`: 파일 삭제 + resources에서 자동 제거
-- `--content`와 `--stdin` 중 하나 필수. 둘 다 없으면 에러.
-
-### Skill 상세 조회
-
-```bash
-agentinc skill show <name>    # 메타데이터 + 파일 목록 + resources 불일치 경고
-```
-
-## Hook JSON 형식
-
-Hook은 config 필드가 구조화된 JSON이므로 `.json` 형식을 유지한다.
-
-## 실행 로그 스키마
-
-```json
-{
-  "id": "uuid",
-  "agent": "developer",
-  "prompt": "버그 고쳐줘",
-  "mode": "interactive",
-  "startedAt": "2026-03-19T10:00:00Z",
-  "finishedAt": "2026-03-19T10:05:00Z",
-  "exitCode": 0,
-  "flags": ["--model", "opus"],
-  "stdout": "",
-  "stderr": ""
+**CompleteOnboarding**
+```typescript
+input: {
+  company: string
+  goal: string
+  businessValues: string
+  businessAntiValues: string
 }
+output: { success: boolean }
 ```
 
-- `mode`: `"interactive"` 또는 `"print"`. `-p` flag 유무로 결정.
-- `prompt`: interactive mode에서 prompt 없이 시작한 경우 `null`.
+### 에이전트용 (agent-mcp)
 
-## Task Index 스키마
-
-### `/tasks/index.json` (top-level)
-
-```json
-{
-  "repositoryUrl": "https://github.com/owner/repo",
-  "tasks": [
-    {
-      "id": 0,
-      "name": "mvp",
-      "dir": "0-mvp",
-      "status": "completed",
-      "created_at": "2026-03-19T01:55:23+09:00",
-      "completed_at": "2026-03-19T02:29:19+09:00",
-      "pr_number": 1,
-      "pr_url": "https://github.com/owner/repo/pull/1"
-    }
-  ]
+**CreateTicket**
+```typescript
+input: {
+  title: string
+  prompt: string
+  assignee: string
+  priority?: 'low' | 'normal' | 'high' | 'urgent'
+  cc?: string[]
 }
+output: { ticketId: string; status: string }
 ```
 
-- `repositoryUrl`: GitHub repository URL. 최초 PR 생성 시 자동 추가.
-- `pr_number`: PR 번호. PR 생성 시 자동 기록.
-- `pr_url`: PR 전체 URL. PR 생성 시 자동 기록.
+**ListTickets**
+```typescript
+input: {
+  status?: string
+  assignee?: string
+}
+output: { tickets: Ticket[] }
+```
 
-## Claude Code 플래그 매핑
-
-| agent 설정 | Claude Code 플래그 |
-|---|---|
-| prompt.md | `--append-system-prompt-file` |
-| subagents (resolved) | `--agents '{...}'` |
-| mcp.json | `--mcp-config` |
-| settings.json | `--settings` |
-| skills (resolved) | `--add-dir` (임시 디렉토리 경로) |
-
-## 기본 Agent 템플릿
-
-`agentinc init` 시 생성되는 기본 agent 3종:
-
-- **developer**: 소프트웨어 개발 전담. 기본 subagent/skills 포함.
-- **designer**: UI/UX 디자인 전담. 기본 subagent/skills 포함.
-- **hr**: 인사/조직 관리 전담. 기본 subagent/skills 포함.
-
-각 agent는 prompt.md + 직무에 맞는 subagent/skills/hooks 풀세트로 제공.
+**UpdateTicket**
+```typescript
+input: {
+  ticketId: string
+  status?: string
+  priority?: string
+  expectedVersion: number
+}
+output: { ticket: Ticket }
+```

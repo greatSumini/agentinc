@@ -1,484 +1,217 @@
-# agentinc Architecture
+# auto-startup Architecture
 
-## 기술 스택
+## 패키지 구조
 
-- **Runtime**: Node.js
-- **Language**: TypeScript
-- **CLI Parser**: commander
-- **Claude Code 연동**: child_process.spawn
-- **Frontmatter 파싱**: gray-matter
-- **배포**: npm
-
-## 레이어 구조
-
-```
-Commands (CLI 파싱) → Services (비즈니스 로직) → Store (데이터 접근) / Claude Runner (실행)
-```
-
-```
-Webhook Receiver (이벤트 수신) → PR Event Service (이벤트 처리) → Ticket Service (티켓 생성)
-```
-
-### Commands
-
-CLI arg 파싱만 수행하고 service를 호출한다. 로직 없음.
-
-### Services
-
-- **agent.service.ts** — agent CRUD + 리소스 assign/unassign
-- **resource.service.ts** — 공용 subagent/skill/hook CRUD
-- **run.service.ts** — 설정 로드 → 플래그 빌드 → spawn → 로그 저장 오케스트레이션
-
-### Store
-
-파일시스템 읽기/쓰기를 인터페이스로 추상화.
-향후 대시보드 서버 API 구현체로 교체 가능.
-
-### Server
-
-HTTP API를 제공하는 Ticket Server.
-
-- **server/index.ts** — Express 앱 생성 및 미들웨어 설정
-- **server/routes/tickets.ts** — /tickets API 라우트
-- **server/routes/agents.ts** — /agents/status API 라우트
-
-### Webhook Receiver
-
-GitHub webhook 이벤트를 수신하는 추상화 레이어.
-
-- **webhook-receiver/index.ts** — IWebhookReceiver 인터페이스
-- **webhook-receiver/smee-receiver.ts** — smee-client 기반 로컬 수신 (개발용)
-- **webhook-receiver/sse-receiver.ts** — SSE 기반 원격 수신 (향후 원격 서버용, stub)
-
-```typescript
-interface IWebhookReceiver {
-  start(): Promise<void>
-  stop(): Promise<void>
-  onEvent(handler: (event: WebhookEvent) => void): void
-}
-```
-
-### PR Event Service
-
-GitHub PR 이벤트를 ticket으로 변환.
-
-- **services/pr-event.service.ts** — review comment, approve 이벤트 처리
-- **services/merge.service.ts** — PR merge 실행, conflict 감지
-
-### GH Client
-
-gh CLI 명령어 래퍼.
-
-- **gh-client/index.ts** — IGhClient 인터페이스 + 구현체
-
-### Ticket Store
-
-Ticket 데이터 저장소 추상화.
-
-- **ticket-store.ts** — ITicketStore 인터페이스
-- **fs-ticket-store.ts** — 파일 기반 구현. 낙관적 락 지원.
-- **agent-status-store.ts** — agent 실시간 상태 저장
-
-### Orchestrator
-
-데몬 모드 시스템 관리.
-
-- **orchestrator.service.ts** — Ticket Server 시작 + agent worker spawn + shutdown 관리
-- **agent-runner.service.ts** — 개별 agent의 polling loop + ticket 처리
-
-```typescript
-interface IStore {
-  // agent
-  getAgent(name: string): AgentConfig
-  listAgents(): AgentConfig[]
-  createAgent(config: AgentConfig): void
-  removeAgent(name: string): void
-  updateAgent(name: string, config: Partial<AgentConfig>): void
-
-  // 공용 리소스
-  getSubagent(name: string): SubagentConfig
-  listSubagents(): SubagentConfig[]
-  createSubagent(config: SubagentConfig): void
-  removeSubagent(name: string): void
-  // skills, hooks 동일 패턴
-
-  // Skill file operations
-  addSkillFile(skillName: string, filePath: string, content: string): void
-  editSkillFile(skillName: string, filePath: string, content: string): void
-  removeSkillFile(skillName: string, filePath: string): void
-  getSkillFile(skillName: string, filePath: string): string
-  getSkillDir(skillName: string): string
-
-  // 실행 로그
-  saveRunLog(log: RunLog): void
-  getRunLogs(filter?: RunLogFilter): RunLog[]
-}
-```
-
-- **fs-store.ts** — 파일시스템 구현체 (MVP). subagent/skill은 `.md` 파일을 `gray-matter`로 파싱하여 frontmatter → 메타데이터, body → prompt로 분리.
-- **api-store.ts** — HTTP API 구현체 (향후 대시보드 연동 시)
-
-### Claude Runner
-
-Claude CLI와의 인터페이스 전담.
-
-- **flag-builder.ts** — AgentConfig → claude CLI 플래그 배열 변환
-- **env-builder.ts** — AgentConfig.gh_user → 환경변수 객체 변환 (GH_TOKEN, GIT_AUTHOR_*, GIT_COMMITTER_*). gh CLI로 토큰/identity resolve. 15분 in-memory 캐시.
-- **spawner.ts** — child_process.spawn + env 주입 + stdin/stdout/stderr 파이프 + 종료코드 전달
-
-### Logger
-
-- **run-logger.ts** — 실행 메타데이터 + stdout/stderr를 `.agentinc/runs/`에 JSON으로 저장
-
-## 소스 디렉토리 구조
+단일 패키지 구조. 모노레포 없음.
 
 ```
 src/
-├── index.ts                  # CLI 엔트리, commander 설정
-├── commands/
-│   ├── init.ts
-│   ├── run.ts
-│   ├── agent.ts
-│   ├── subagent.ts
-│   ├── skill.ts
-│   └── hook.ts
-├── services/
-│   ├── agent.service.ts
-│   ├── resource.service.ts
-│   ├── run.service.ts
-│   ├── pr-event.service.ts   # PR 이벤트 → ticket 변환
-│   └── merge.service.ts      # PR merge 실행
-├── server/
-│   ├── index.ts
-│   ├── routes/
-│   │   ├── tickets.ts
-│   │   └── agents.ts
-│   └── middleware/
-│       └── error-handler.ts
-├── webhook-receiver/
-│   ├── index.ts              # IWebhookReceiver 인터페이스
-│   ├── smee-receiver.ts      # smee-client 래퍼 (로컬용)
-│   └── sse-receiver.ts       # SSE 클라이언트 (원격용, stub)
-├── gh-client/
-│   └── index.ts              # IGhClient 인터페이스 + 구현
-├── store/
-│   ├── store.ts              # 기존 IStore
-│   ├── fs-store.ts           # 기존
-│   ├── ticket-store.ts       # ITicketStore 인터페이스
-│   ├── fs-ticket-store.ts    # 파일 기반 구현
-│   └── agent-status-store.ts # agent 상태 저장
-├── claude-runner/
-│   ├── flag-builder.ts
-│   ├── env-builder.ts
-│   └── spawner.ts
-├── logger/
-│   └── run-logger.ts
-├── utils/
-│   └── frontmatter.ts        # subagent/skill MD 파일의 파싱(parse*Md)과 직렬화(serialize*Md)
-├── types/
-│   ├── index.ts
-│   └── github-events.ts      # GitHub webhook payload 타입
-├── agent-worker.ts           # fork용 엔트리포인트
-└── templates/                # init 시 복사할 기본 agent 템플릿
+├── core/           # 비즈니스 로직 (타입, 스토어, 서비스)
+│   ├── types.ts
+│   ├── store/
+│   │   ├── config-store.ts
+│   │   ├── agent-store.ts
+│   │   └── ticket-store.ts
+│   ├── services/
+│   │   └── ticket.service.ts
+│   └── utils/
+│       └── frontmatter.ts
+├── server/         # Hono API 서버
+│   ├── index.ts        # 서버 시작 함수 (startOnboardingServer, startNormalServer)
+│   ├── onboarding.ts   # 온보딩 모드 라우트
+│   ├── normal.ts       # 노멀 모드 라우트
+│   └── shared/
+│       ├── event-bus.ts
+│       └── sse-handler.ts
+├── claude-runner/  # Claude CLI spawn
+│   ├── index.ts        # runClaude 함수
+│   ├── flag-builder.ts # CLI 플래그 빌드
+│   ├── env-builder.ts  # 환경변수 빌드 (GitHub 프로필)
+│   └── spawner.ts      # child_process spawn
+├── daemon/         # 에이전트 워커
+│   ├── orchestrator.ts # 워커 프로세스 관리
+│   └── agent-worker.ts # 개별 에이전트 워커 (fork entry)
+├── mcp/            # MCP stdio 서버
+│   ├── protocol.ts     # MCP 서버 베이스 클래스
+│   ├── onboarding-mcp.ts
+│   └── agent-mcp.ts
+├── templates/      # 프롬프트 템플릿
+│   ├── context-engineer.md
+│   ├── onboarding-system.md
+│   └── personas/
+│       ├── elon-musk.md
+│       ├── peter-thiel.md
+│       ├── steve-jobs.md
+│       └── bill-gates.md
+├── cli/            # CLI 진입점
+│   └── index.ts
+└── web/            # React 프론트엔드
+    ├── App.tsx
+    ├── main.tsx
+    ├── pages/
+    ├── components/
+    ├── hooks/
+    └── lib/
 ```
 
-## Monorepo 구조
-
-pnpm workspace 기반 monorepo로 구성된다.
+## 계층 구조
 
 ```
-packages/
-├── core/           # 공유 로직 + 타입
-│   ├── src/
-│   │   ├── types/           # 도메인 타입 (Agent, Ticket, etc)
-│   │   ├── store/           # IStore, ITicketStore + 구현체
-│   │   ├── services/        # 비즈니스 로직
-│   │   └── utils/           # frontmatter 파싱 등
-│   └── package.json
-│
-├── cli/            # CLI 전용
-│   ├── src/
-│   │   ├── commands/        # commander 핸들러
-│   │   ├── claude-runner/   # spawn 로직
-│   │   ├── gh-client/       # gh CLI 래퍼
-│   │   └── logger/          # 실행 로그
-│   └── package.json
-│
-├── server/         # HTTP API 서버
-│   ├── src/
-│   │   ├── routes/          # /tickets, /agents, /events
-│   │   ├── middleware/      # auth, webhook-signature
-│   │   ├── events/          # SSE EventBus
-│   │   └── webhook-receiver/
-│   └── package.json
-│
-└── web/            # GUI 대시보드
-    ├── src/
-    │   ├── components/      # React 컴포넌트
-    │   ├── pages/           # 페이지
-    │   ├── hooks/           # useSSE, useTickets 등
-    │   └── stores/          # Zustand 스토어
-    └── package.json
+┌─────────────────────────────────────────────────────────────┐
+│                         CLI (cli/)                          │
+│  - 진입점, 온보딩/노멀 모드 분기, PID 관리, graceful shutdown │
+└─────────────────────────────────────────────────────────────┘
+                              │
+          ┌───────────────────┴───────────────────┐
+          ▼                                       ▼
+┌──────────────────┐                   ┌──────────────────┐
+│  Server (Hono)   │                   │     Daemon       │
+│  - onboarding.ts │                   │  - orchestrator  │
+│  - normal.ts     │                   │  - agent-worker  │
+│  - SSE events    │                   │  - HTTP polling  │
+└──────────────────┘                   └──────────────────┘
+          │                                       │
+          ▼                                       ▼
+┌──────────────────┐                   ┌──────────────────┐
+│    Services      │                   │  Claude Runner   │
+│  - TicketService │                   │  - flag-builder  │
+└──────────────────┘                   │  - env-builder   │
+          │                            │  - spawner       │
+          ▼                            └──────────────────┘
+┌──────────────────┐                              │
+│      Store       │                              ▼
+│  - config-store  │                   ┌──────────────────┐
+│  - agent-store   │                   │   Claude CLI     │
+│  - ticket-store  │                   │  (child_process) │
+└──────────────────┘                   └──────────────────┘
+          │
+          ▼
+┌──────────────────┐
+│   Filesystem     │
+│  .auto-startup/  │
+└──────────────────┘
 ```
 
-### 패키지 의존성
+## 모듈 의존성
 
-```
-@agentinc/core ← @agentinc/cli
-             ← @agentinc/server
-             ← @agentinc/web (타입만)
-```
+실제 import 기반:
 
-## GUI 대시보드
-
-### 기술 스택
-
-- **프레임워크**: Vite + React + TypeScript
-- **스타일링**: Tailwind CSS + shadcn/ui
-- **상태 관리**: React Query (서버 상태) + Zustand (클라이언트 상태)
-- **실시간**: SSE (Server-Sent Events)
-
-### 실행 모드
-
-**개발 모드**:
-- `agentinc start` — API 서버 (포트 3847)
-- `pnpm --filter @agentinc/web dev` — Vite dev server (포트 3848, HMR)
-- Vite proxy로 API 요청을 3847로 전달
-
-**프로덕션 모드**:
-- `agentinc start` — API 서버 + 정적 파일 서빙
-- 빌드된 web 패키지가 server/public/에 배치됨
-
-### SSE 실시간 업데이트
-
-```
-GET /events
-Content-Type: text/event-stream
-
-이벤트:
-- ticket:created — 새 티켓 생성
-- ticket:updated — 티켓 상태/내용 변경
-- agent:status — Agent idle/working 상태 변경
-```
+| 모듈 | 의존 대상 |
+|------|-----------|
+| cli/index.ts | core/store/config-store, server/index, daemon/orchestrator |
+| server/index.ts | server/onboarding, server/normal, server/shared/event-bus |
+| server/onboarding.ts | core/store/config-store, core/store/agent-store, core/utils/frontmatter |
+| server/normal.ts | core/store/*, core/services/ticket.service, daemon/orchestrator, claude-runner/spawner |
+| daemon/orchestrator.ts | core/store/agent-store, daemon/agent-worker (fork) |
+| daemon/agent-worker.ts | claude-runner/index, core/types |
+| claude-runner/flag-builder.ts | core/store/agent-store, core/utils/frontmatter |
+| claude-runner/spawner.ts | (child_process only) |
+| mcp/onboarding-mcp.ts | mcp/protocol |
+| mcp/agent-mcp.ts | mcp/protocol |
 
 ## 데이터 흐름
 
-### Interactive Mode 예시: `agentinc run developer`
+### 온보딩 모드
 
 ```
-1. commands/run.ts
-   포지셔널 추출: agent="developer", prompt=undefined (optional)
-   mode 결정: -p flag 없음 → interactive mode
-   패스스루 수집: []
-        │
-        ▼
-2. services/run.service.ts
-   store.getAgent("developer") → AgentConfig
-   store.getSubagents(config.subagents) → SubagentConfig[]
-   mode="interactive" 전달
-        │
-        ▼
-3. claude-runner/env-builder.ts
-   agent.gh_user → gh auth token → gh api /user → env 객체
-   gh_user 미설정 시 빈 env (시스템 기본값 사용)
-        │
-        ▼
-4. claude-runner/flag-builder.ts
-   AgentConfig + SubagentConfig[] → claude CLI 플래그 배열
-   prompt가 undefined이면 마지막 positional arg 생략
-   ["--append-system-prompt-file", "...prompt.md",
-    "--agents", '{"git-expert":{...}}']
-        │
-        ▼
-5. claude-runner/spawner.ts
-   child_process.spawn("claude", flags, { env: { ...process.env, ...ghEnv } })
-   stdio: 'inherit' → interactive TUI가 터미널에 표시됨
-        │
-        ▼
-6. logger/run-logger.ts
-   RunLog JSON → .agentinc/runs/{timestamp}-{uuid}.json
-   prompt: null, mode: "interactive"
+1. CLI 시작
+   └─> isOnboarded() === false
+       └─> startOnboardingServer(rootDir, port)
+           └─> Hono 서버 시작 + 브라우저 오픈
+
+2. 사용자: 페르소나 선택
+   └─> POST /api/onboarding/persona
+       └─> spawnCEOSession() (비동기)
+           └─> claude --print --mcp-config onboarding-mcp.json
+
+3. CEO Claude: AskOnboardingQuestions 호출
+   └─> MCP: POST /api/onboarding/push-questions
+       └─> eventBus.emit('onboarding:question')
+           └─> SSE push to Web UI
+
+4. 사용자: 답변 제출
+   └─> POST /api/onboarding/answers
+       └─> bridge.pendingQuestionResolve()
+           └─> MCP tool response → Claude 계속
+
+5. 반복 → CompleteOnboarding 호출
+   └─> POST /api/onboarding/complete
+       └─> principles/ 생성, CLAUDE.md 생성, CEO 에이전트 생성
+       └─> config.onboardingCompleted = true
+
+6. CLI: waitForOnboardingComplete() 완료
+   └─> 서버 종료 → 노멀 모드 시작
 ```
 
-### Interactive Mode with Prompt 예시: `agentinc run developer "버그 고쳐줘" --model opus`
+### 노멀 모드
 
 ```
-1. commands/run.ts
-   포지셔널 추출: agent="developer", prompt="버그 고쳐줘" (optional)
-   mode 결정: -p flag 없음 → interactive mode (prompt 있는 interactive)
-   패스스루 수집: ["--model", "opus"]
-   (-p flag 사용 시 mode="print", prompt 필수)
-        │
-        ▼
-2. services/run.service.ts
-   store.getAgent("developer") → AgentConfig
-   store.getSubagents(config.subagents) → SubagentConfig[]
-   store.getSkills(config.skills) → SkillConfig[]
-        │
-        ▼
-3. claude-runner/env-builder.ts
-   agent.gh_user → gh auth token → gh api /user → env 객체
-   gh_user 미설정 시 빈 env (시스템 기본값 사용)
-        │
-        ▼
-4. claude-runner/flag-builder.ts
-   AgentConfig + SubagentConfig[] → claude CLI 플래그 배열
-   prompt가 있으면 마지막 positional arg로 포함
-   ["--append-system-prompt-file", "...prompt.md",
-    "--agents", '{"git-expert":{...}}',
-    "--model", "opus",
-    "버그 고쳐줘"]
-        │
-        ▼
-5. claude-runner/spawner.ts
-   child_process.spawn("claude", flags, { env: { ...process.env, ...ghEnv } })
-   stdout/stderr → 사용자에게 파이프 + 버퍼에 수집
-        │
-        ▼
-6. logger/run-logger.ts
-   RunLog JSON → .agentinc/runs/{timestamp}-{uuid}.json
-   prompt: "버그 고쳐줘", mode: "interactive"
+1. CLI: startNormalServer() + orchestrator.start()
+   └─> Hono 서버 시작 (normal.ts)
+   └─> Orchestrator: 각 에이전트에 워커 fork
+
+2. AgentWorker: 티켓 폴링 (5초 간격)
+   └─> GET /api/tickets?assignee=<name>&status=ready
+       └─> 티켓 있으면:
+           └─> PATCH /api/tickets/:id (status: in_progress)
+           └─> runClaude(agentName, ticket.prompt)
+           └─> PATCH /api/tickets/:id (status: completed|failed)
+
+3. 웹 UI: SSE로 에이전트 상태 실시간 표시
+   └─> GET /api/events
+       └─> agent-worker IPC → orchestrator → eventBus → SSE
 ```
 
-### Skill 전달 흐름 (--add-dir)
-
-run.service에서 skills resolve 후:
+### Talk to CEO
 
 ```
-1. stale temp 정리
-   .agentinc/.tmp/run-* 중 1시간 이상 경과한 디렉토리 자동 삭제
+1. 사용자: 메시지 입력
+   └─> POST /api/chat { message: "..." }
 
-2. 임시 디렉토리 생성
-   .agentinc/.tmp/run-{uuid}/.claude/skills/ 생성
+2. normal.ts:
+   └─> CEO prompt.md 로드
+   └─> agent-mcp.json 생성
+   └─> spawnClaude(['--print', '-p', message, ...], {}, { stdio: 'pipe' })
 
-3. skill 디렉토리 복사
-   할당된 skill 디렉토리 전체를 임시 경로로 복사
+3. Claude 실행 완료
+   └─> { response: stdout }
 
-4. flag-builder
-   addDirPath: ".agentinc/.tmp/run-{uuid}" → --add-dir 플래그 생성
-
-5. spawner
-   child_process.spawn("claude", [...flags, "--add-dir", addDirPath])
-
-6. 정리 (try/finally)
-   spawn 완료 후 임시 디렉토리 삭제
+4. 웹 UI: 응답 표시
 ```
 
-### FlagBuilderInput
+## 서버 분리
 
-```typescript
-interface FlagBuilderInput {
-  promptFilePath: string
-  subagents?: SubagentConfig[]
-  mcpConfigPath?: string
-  settingsPath?: string
-  addDirPath?: string           // skills 임시 디렉토리 경로
-  passthroughFlags?: string[]
-  prompt?: string
+- **onboarding.ts**: 온보딩 전용 라우트
+  - `/api/onboarding/*` — 페르소나, 질문, 회사명, 완료
+  - MCP bridge 엔드포인트
+
+- **normal.ts**: 대시보드 전용 라우트
+  - `/api/config` — 설정 조회
+  - `/api/tickets/*` — 티켓 CRUD
+  - `/api/agents` — 에이전트 목록 + 상태
+  - `/api/chat` — Talk to CEO
+  - `/api/hooks/*` — SessionEnd hook
+
+- **동시 실행 불가**: CLI가 온보딩 완료 후 순차적으로 전환. MCP 서버의 tool 목록이 시작 시점에 결정되므로 런타임 모드 스위칭 불가.
+
+## 빌드 파이프라인
+
+```bash
+npm run build
+```
+
+1. **Vite**: `src/web/` → `dist/web/` (정적 파일)
+   - React 번들, CSS, index.html
+
+2. **tsc**: `src/` (web 제외) → `dist/` (서버/CLI/코어)
+   - `tsconfig.server.json` 사용
+   - ESM 출력
+
+3. **런타임**: Hono가 `dist/web/` 정적 서빙
+
+```json
+// package.json
+"scripts": {
+  "build": "vite build && tsc -p tsconfig.server.json"
 }
-```
-
-### 데몬 모드 예시: `agentinc start`
-
-```
-1. commands/start.ts
-   orchestrator.start() 호출
-        │
-        ▼
-2. services/orchestrator.service.ts
-   Ticket Server 시작 (http://localhost:3847)
-   모든 agent에 대해 child_process.fork('agent-worker.ts')
-        │
-        ├──▶ Agent Worker (developer)
-        ├──▶ Agent Worker (designer)
-        └──▶ Agent Worker (hr)
-             │
-             ▼
-3. agent-worker.ts → services/agent-runner.service.ts
-   while (alive) {
-     sendHeartbeat()
-     ticket = HTTP GET /tickets?assignee={name}&status=ready
-     if (ticket) processTicket(ticket)
-     if (idleTime > 3분) break
-     sleep(5초)
-   }
-        │
-        ▼
-4. ticket 처리 시
-   HTTP PATCH /tickets/{id} { status: 'in_progress' }
-   spawnSync('claude', ...) // 기존 claude-runner 활용
-   HTTP PATCH /tickets/{id} { status: 'completed', result: {...} }
-```
-
-### Ticket 생성 → 처리 흐름 (cc 포함)
-
-```
-1. agentinc ticket create --assignee developer --cc designer
-        │
-        ▼
-2. HTTP POST /tickets
-   TicketService.createTicket():
-     - task ticket 생성 (status: blocked)
-     - cc_review ticket 생성 (assignee: designer, status: ready)
-        │
-        ▼
-3. Designer Worker
-   cc_review ticket 발견 → 처리 → completed
-   의견이 있으면 comment 추가
-        │
-        ▼
-4. TicketService.checkCcCompletion()
-   모든 cc_review completed → task status: blocked → ready
-   cc_review comments를 task에 복사
-        │
-        ▼
-5. Developer Worker
-   task ticket 발견 → 처리 → completed
-```
-
-### Webhook 이벤트 처리 흐름
-
-#### Review Comment → Ticket
-
-```
-1. GitHub에서 PR review comment 작성
-        │
-        ▼
-2. Webhook 발송 → smee.io (로컬) 또는 agentinc 서버 (원격)
-        │
-        ▼
-3. SmeeReceiver / SseReceiver가 이벤트 수신
-        │
-        ▼
-4. POST /webhooks/github → webhook-signature 검증
-        │
-        ▼
-5. PrEventService.handleReviewComment()
-   - PR author의 gh_user로 agent 매칭
-   - 기존 ticket 검색 (같은 PR, ready/blocked 상태)
-   - 있으면 업데이트, 없으면 새 ticket 생성
-        │
-        ▼
-6. Agent worker가 ticket 처리
-```
-
-#### Approve → Merge
-
-```
-1. GitHub에서 PR approve
-        │
-        ▼
-2. Webhook → PrEventService.handleReviewApproved()
-   - approveCondition 체크 ('any' 또는 'all')
-   - 조건 충족 시 merge ticket 생성
-        │
-        ▼
-3. Agent worker가 merge ticket 처리
-   - MergeService.executeMerge() 호출
-   - gh pr merge --auto 실행
-        │
-        ├── 성공 → ticket completed
-        │
-        └── conflict → git rebase --abort
-                     → conflict_resolve ticket 생성
 ```
